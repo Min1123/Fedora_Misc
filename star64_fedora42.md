@@ -1,7 +1,8 @@
 # Overview
 --------
-Short instructions for making a Fedora 42 disk image that can boot a serial console on a Star64 board from Pine64 from the Generic Server disk image
-Star64 has firmware blobs for 
+Short instructions for making a Fedora 42 disk image that can boot a serial console on a Star64 board from Pine64 from the Generic Server disk image.
+
+Star64 has firmware blobs for its bootloader, and these need to be in the partition table as GPT to be detected and to allow the system to boot. These need to go at the beginning, so that the root partition is the last partition, so that the root partition can be resized after first boot.
 
 
 # Images Needed
@@ -64,9 +65,19 @@ xzcat ~/Downloads/Fedora-Server-Host-Generic-42.20250414-8635a3a5bfcd.riscv64.ra
 # Regenerate the partitions for the new image
 sudo parted -a none -s sf.img -- mklabel gpt unit s mkpart primary 4096 8191 mkpart primary 8192 16383 mkpart primary 16384 18431 mkpart primary 18432 1042431 mkpart primary 1042432 3090431 mkpart primary 3090432 20987870 type 1 2E54B353-1271-4842-806F-E436D6AF6985 type 2 5B193300-FC78-40CD-8002-E86C45580B47 type 3 E3C9E316-0B5C-4DB8-817D-F92DF00215AE type 4 C12A7328-F81F-11D2-BA4B-00A0C93EC93B type 5 BC13C2FF-59E6-4262-A352-B275FD6F7172 type 6 72EC70A6-CF74-40E6-BD49-4BDA08E8F224
 
-# Mount the boot partition and add the devicetree to the grub.cfg
+# Mount the boot partition and add the devicetree to the grub.cfg (needs to got before the options line)
 mkdir mnt
 sudo mount -o offset=$((512*1042432)) sf.img mnt
-echo -ne "devicetree /dtb/starfive/jh7110-pine64-star64.dtb\n" |  sudo tee -a mnt/loader/entries/5654299c6cb54f958a607c5d2e38622c-6.13.0-0.rc4.36.0.riscv64.fc42.riscv64.conf
+export CONF_ORIG=mnt/loader/entries/5654299c6cb54f958a607c5d2e38622c-6.13.0-0.rc4.36.0.riscv64.fc42.riscv64.conf
+export CONF=/tmp/s64_orig.conf
+export OUT=/tmp/s64_tmp.tmp
+sudo cp ${CONF_ORIG} ${CONF}
+sudo chmod 666 ${CONF}
+head -4 ${CONF} > ${OUT}
+echo -ne "devicetree /dtb/starfive/jh7110-pine64-star64.dtb\n" >> ${OUT}
+tail -4 ${CONF} >> ${OUT}
+sudo cp ${OUT} ${CONF_ORIG}
+sudo rm ${OUT} ${CONF}
+sudo umount mnt
 ```
 
